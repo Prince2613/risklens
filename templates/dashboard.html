@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — RiskLens{% endblock %}
+
+{% block content %}
+
+<div class="dash-head">
+  <div>
+    <div class="eyebrow">DASHBOARD</div>
+    <h1 class="dash-title">Welcome, {{ name }}</h1>
+  </div>
+  <div class="dash-controls">
+    <label class="inline-field">
+      <span>Portfolio value (₹)</span>
+      <input type="number" id="portfolio-value" value="100000" min="1000" step="1000">
+    </label>
+  </div>
+</div>
+
+<div class="grid-2">
+
+  <div class="col-left">
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Market View</h3>
+        <div class="ticker-search-wrap">
+          <input type="text" id="ticker-search" class="ticker-search" list="ticker-datalist"
+                 placeholder="Search ticker or company…" autocomplete="off">
+          <datalist id="ticker-datalist"></datalist>
+        </div>
+      </div>
+
+      <div class="quote-block">
+        <div class="quote-price" id="quote-price">—</div>
+        <div class="quote-change" id="quote-change">—</div>
+      </div>
+
+      <div id="ohlc-strip" class="ohlc-strip"></div>
+
+      <div class="chart-controls-row">
+        <div class="chart-type-group" id="chart-type-group">
+          <button class="chart-type-btn active" data-type="candle">Candles</button>
+          <button class="chart-type-btn" data-type="line">Line</button>
+          <button class="chart-type-btn" data-type="bar">Bars</button>
+          <button class="chart-type-btn" data-type="area">Area</button>
+        </div>
+        <div class="range-group" id="range-group">
+          <button class="range-btn" data-range="1D">1D</button>
+          <button class="range-btn" data-range="5D">5D</button>
+          <button class="range-btn" data-range="1M">1M</button>
+          <button class="range-btn" data-range="3M">3M</button>
+          <button class="range-btn" data-range="YTD">YTD</button>
+          <button class="range-btn active" data-range="1Y">1Y</button>
+          <button class="range-btn" data-range="5Y">5Y</button>
+          <button class="range-btn" data-range="ALL">All</button>
+        </div>
+      </div>
+
+      <div id="main-chart" class="chart-main"><div class="chart-loading">Loading chart…</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Your Portfolio</h3>
+        <button type="button" id="demo-btn" class="btn-ghost btn-sm">Load demo</button>
+      </div>
+      <p class="muted small">
+        Format: <code>TICKER:WEIGHT</code>, separated by commas.
+        Example: <code>AAPL:30, MSFT:20, RELIANCE.NS:25, TCS.NS:25</code>
+      </p>
+      <textarea id="portfolio-input" rows="3" class="input-area"
+        placeholder="AAPL:30, MSFT:20, RELIANCE.NS:25, TCS.NS:25">AAPL:30, MSFT:20, RELIANCE.NS:25, TCS.NS:25</textarea>
+      <div class="panel-actions">
+        <button id="analyze-btn" class="btn-primary">Analyze portfolio</button>
+        <span id="analyze-status" class="muted small"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-right">
+
+    <div class="panel risk-panel">
+      <div class="panel-head"><h3>Risk Level</h3></div>
+      <div id="risk-badge" class="risk-badge risk-neutral">—</div>
+      <p id="risk-desc" class="muted small">Run analysis to see your portfolio's risk profile.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Key Metrics</h3></div>
+      <div class="metrics-grid" id="metrics-grid">
+        <div class="metric"><div class="metric-label">ANN. RETURN</div><div class="metric-value" id="m-return">—</div></div>
+        <div class="metric"><div class="metric-label">ANN. VOLATILITY</div><div class="metric-value" id="m-vol">—</div></div>
+        <div class="metric"><div class="metric-label">SHARPE</div><div class="metric-value" id="m-sharpe">—</div></div>
+        <div class="metric"><div class="metric-label">BETA</div><div class="metric-value" id="m-beta">—</div></div>
+        <div class="metric"><div class="metric-label">MAX DRAWDOWN</div><div class="metric-value loss" id="m-dd">—</div></div>
+        <div class="metric"><div class="metric-label">VaR 95% (1D)</div><div class="metric-value loss" id="m-var">—</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Cost Impact</h3></div>
+      <div class="cost-list">
+        <div class="cost-row"><span>On a 95%-confidence bad day</span><span class="cost-val" id="c-var">—</span></div>
+        <div class="cost-row"><span>Avg. loss in worst 5% of days</span><span class="cost-val" id="c-es">—</span></div>
+        <div class="cost-row"><span>Worst historical drawdown</span><span class="cost-val" id="c-dd">—</span></div>
+      </div>
+    </div>
+
+    <div class="panel" id="reco-panel" style="display:none;">
+      <div class="panel-head"><h3>Recommendation</h3></div>
+      <div class="reco-box">
+        <div class="reco-alloc" id="reco-alloc">—</div>
+        <p id="reco-text" class="muted small"></p>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="panel" id="compare-panel" style="display:none;">
+  <div class="panel-head"><h3>Your Portfolio vs. Equal-Weight</h3></div>
+  <table class="compare-table">
+    <thead><tr><th></th><th>Return</th><th>Volatility</th><th>Sharpe</th></tr></thead>
+    <tbody>
+      <tr><td>Your portfolio</td><td id="cmp-you-ret">—</td><td id="cmp-you-vol">—</td><td id="cmp-you-sharpe">—</td></tr>
+      <tr><td>Equal-weight</td><td id="cmp-eq-ret">—</td><td id="cmp-eq-vol">—</td><td id="cmp-eq-sharpe">—</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="panel" id="corr-panel" style="display:none;">
+  <div class="panel-head"><h3>Correlation Matrix</h3></div>
+  <div id="corr-chart" class="chart-mid"></div>
+</div>
+
+<div class="panel" id="contrib-panel" style="display:none;">
+  <div class="panel-head"><h3>Risk Contribution by Stock</h3></div>
+  <div id="contrib-chart" class="chart-mid"></div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h3>Stress Test — Historical Scenarios</h3>
+    <button type="button" id="stress-btn" class="btn-ghost btn-sm">Run stress test</button>
+  </div>
+  <p class="muted small">Applies your current portfolio weights to real historical crash windows.</p>
+  <div id="stress-results" class="stress-results"></div>
+</div>
+
+<script>
+let currentTicker = 'RELIANCE.NS';
+let currentType = 'candle';
+let currentRange = '1Y';
+let tickerMap = {};
+
+// ---------- Load ticker list for search ----------
+fetch('/api/tickers')
+  .then(r => r.json())
+  .then(list => {
+    const dl = document.getElementById('ticker-datalist');
+    list.forEach(t => {
+      tickerMap[t.name + ' (' + t.symbol + ')'] = t.symbol;
+      tickerMap[t.symbol] = t.symbol;
+      const opt = document.createElement('option');
+      opt.value = t.name + ' (' + t.symbol + ')';
+      dl.appendChild(opt);
+    });
+  });
+
+function applyTicker(val) {
+  val = (val || '').trim();
+  if (!val) return;
+  currentTicker = tickerMap[val] || val.toUpperCase();
+  loadChart();
+}
+
+document.getElementById('ticker-search').addEventListener('change', (e) => applyTicker(e.target.value));
+document.getElementById('ticker-search').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    applyTicker(e.target.value);
+  }
+});
+
+function loadChart() {
+  const el = document.getElementById('main-chart');
+  if (el && el.data) {
+    try { Plotly.purge(el); } catch (e) {}
+  }
+  el.innerHTML = '<div class="chart-loading">Loading chart…</div>';
+  document.getElementById('ohlc-strip').innerHTML = '';
+
+  const url = '/api/chart/' + encodeURIComponent(currentTicker) +
+    '?type=' + currentType + '&range=' + currentRange + '&_=' + Date.now();
+
+  fetch(url, {cache: 'no-store'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        el.innerHTML = '<div class="chart-loading">' + data.error + '</div>';
+        return;
+      }
+      try { Plotly.purge(el); } catch (e) {}
+      el.innerHTML = '';
+      Plotly.newPlot(el, data.figure.data, data.figure.layout, {
+        displayModeBar: false,
+        responsive: true,
+        scrollZoom: true
+      }).then(() => Plotly.Plots.resize(el));
+      renderQuote(data.ohlc);
+      renderOHLC(data.ohlc);
+    })
+    .catch(err => {
+      console.error('[chart error]', err);
+      el.innerHTML = '<div class="chart-loading">Error: ' + err + '</div>';
+    });
+}
+
+function renderQuote(o) {
+  const cls = o.change >= 0 ? 'gain' : 'loss';
+  const sign = o.change >= 0 ? '+' : '';
+  document.getElementById('quote-price').textContent = o.close;
+  const changeEl = document.getElementById('quote-change');
+  changeEl.textContent = sign + o.change + ' (' + sign + o.change_pct + '%)';
+  changeEl.className = 'quote-change ' + cls;
+}
+
+function renderOHLC(o) {
+  document.getElementById('ohlc-strip').innerHTML =
+    '<span class="ohlc-item"><span class="ohlc-label">O</span><span class="ohlc-val">' + o.open + '</span></span>' +
+    '<span class="ohlc-item"><span class="ohlc-label">H</span><span class="ohlc-val">' + o.high + '</span></span>' +
+    '<span class="ohlc-item"><span class="ohlc-label">L</span><span class="ohlc-val">' + o.low + '</span></span>' +
+    '<span class="ohlc-item"><span class="ohlc-label">C</span><span class="ohlc-val">' + o.close + '</span></span>';
+}
+
+document.querySelectorAll('.chart-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentType = btn.dataset.type;
+    loadChart();
+  });
+});
+
+document.querySelectorAll('.range-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentRange = btn.dataset.range;
+    loadChart();
+  });
+});
+
+loadChart();
+
+document.getElementById('demo-btn').addEventListener('click', () => {
+  document.getElementById('portfolio-input').value = 'AAPL:30, MSFT:20, RELIANCE.NS:25, TCS.NS:25';
+});
+
+document.getElementById('analyze-btn').addEventListener('click', () => {
+  const raw = document.getElementById('portfolio-input').value;
+  const value = document.getElementById('portfolio-value').value;
+  const status = document.getElementById('analyze-status');
+  status.textContent = 'Fetching data…';
+
+  fetch('/api/analyze', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({portfolio: raw, value: value})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) { status.textContent = d.error; return; }
+    status.textContent = 'Done.';
+    renderResults(d);
+  })
+  .catch(() => { status.textContent = 'Error. Check tickers.'; });
+});
+
+function fmtPct(x) { return (x >= 0 ? '+' : '') + x.toFixed(2) + '%'; }
+function fmtMoney(x) { return '−₹' + Number(x).toLocaleString('en-IN'); }
+
+function renderResults(d) {
+  const badge = document.getElementById('risk-badge');
+  badge.textContent = d.risk_level;
+  badge.className = 'risk-badge risk-' + d.risk_level.toLowerCase();
+  document.getElementById('risk-desc').textContent =
+    'Annualized volatility: ' + d.ann_vol.toFixed(2) + '%. Based on 1-year historical returns.';
+
+  const retEl = document.getElementById('m-return');
+  retEl.textContent = fmtPct(d.ann_return);
+  retEl.className = 'metric-value ' + (d.ann_return >= 0 ? 'gain' : 'loss');
+
+  document.getElementById('m-vol').textContent = d.ann_vol.toFixed(2) + '%';
+  document.getElementById('m-sharpe').textContent = d.sharpe.toFixed(2);
+  document.getElementById('m-beta').textContent = d.beta !== null ? d.beta.toFixed(2) : 'n/a';
+  document.getElementById('m-dd').textContent = d.max_dd.toFixed(2) + '%';
+  document.getElementById('m-var').textContent = d.var_95.toFixed(2) + '%';
+
+  document.getElementById('c-var').textContent = fmtMoney(d.var_loss);
+  document.getElementById('c-es').textContent = fmtMoney(d.es_loss);
+  document.getElementById('c-dd').textContent = fmtMoney(d.dd_loss);
+
+  const corr = d.corr;
+  const tickers = Object.keys(corr);
+  const z = tickers.map(t1 => tickers.map(t2 => corr[t1][t2]));
+  Plotly.newPlot('corr-chart', [{
+    z: z, x: tickers, y: tickers, type: 'heatmap',
+    colorscale: [[0, '#ef5350'], [0.5, '#131721'], [1, '#26a69a']],
+    zmin: -1, zmax: 1, showscale: true
+  }], {
+    paper_bgcolor: '#131721', plot_bgcolor: '#131721',
+    font: {color: '#e6edf3', family: 'Inter'},
+    margin: {l: 100, r: 20, t: 20, b: 80}, height: 380
+  }, {displayModeBar: false});
+  document.getElementById('corr-panel').style.display = 'block';
+
+  const labels = Object.keys(d.risk_contrib);
+  const vals = labels.map(k => Math.abs(d.risk_contrib[k]));
+  Plotly.newPlot('contrib-chart', [{
+    x: vals, y: labels, type: 'bar', orientation: 'h', marker: {color: '#4f9cf9'}
+  }], {
+    paper_bgcolor: '#131721', plot_bgcolor: '#131721',
+    font: {color: '#e6edf3', family: 'Inter'},
+    margin: {l: 100, r: 20, t: 20, b: 40}, height: 380
+  }, {displayModeBar: false});
+  document.getElementById('contrib-panel').style.display = 'block';
+
+  renderExtras(d);
+}
+
+function renderExtras(d) {
+  if (d.recommendation) {
+    document.getElementById('reco-alloc').textContent = d.recommendation.suggested_allocation_pct + '% suggested allocation';
+    document.getElementById('reco-text').textContent = d.recommendation.action_text;
+    document.getElementById('reco-panel').style.display = 'block';
+  }
+  if (d.comparison) {
+    const you = d.comparison.your_portfolio;
+    const eq = d.comparison.equal_weight;
+    document.getElementById('cmp-you-ret').textContent = you.return.toFixed(2) + '%';
+    document.getElementById('cmp-you-vol').textContent = you.vol.toFixed(2) + '%';
+    document.getElementById('cmp-you-sharpe').textContent = you.sharpe.toFixed(2);
+    document.getElementById('cmp-eq-ret').textContent = eq.return.toFixed(2) + '%';
+    document.getElementById('cmp-eq-vol').textContent = eq.vol.toFixed(2) + '%';
+    document.getElementById('cmp-eq-sharpe').textContent = eq.sharpe.toFixed(2);
+    document.getElementById('compare-panel').style.display = 'block';
+  }
+}
+
+document.getElementById('stress-btn').addEventListener('click', () => {
+  const raw = document.getElementById('portfolio-input').value;
+  const box = document.getElementById('stress-results');
+  box.innerHTML = '<div class="chart-loading">Running scenarios… this can take 10–20s</div>';
+
+  fetch('/api/stress', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({portfolio: raw})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) { box.innerHTML = '<p class="muted small">' + d.error + '</p>'; return; }
+    let html = '';
+    for (const [name, res] of Object.entries(d.scenarios)) {
+      if (res.portfolio_return === null) {
+        html += '<div class="stress-row"><span>' + name + '</span><span class="muted small">No data available</span></div>';
+        continue;
+      }
+      const cls = res.portfolio_return < 0 ? 'loss' : 'gain';
+      html += '<div class="stress-row"><span>' + name + '</span><span class="stress-val ' + cls + '">' +
+        (res.portfolio_return >= 0 ? '+' : '') + res.portfolio_return + '%</span></div>';
+      if (res.note) { html += '<div class="stress-note">' + res.note + '</div>'; }
+    }
+    box.innerHTML = html;
+  })
+  .catch(() => { box.innerHTML = '<p class="muted small">Error running stress test.</p>'; });
+});
+</script>
+
+{% endblock %}

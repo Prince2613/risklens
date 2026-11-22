@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}RiskLens — Portfolio Risk Analytics{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+  <div class="hero-left">
+    <div class="eyebrow">PORTFOLIO RISK ANALYTICS</div>
+    <h1 class="hero-title">
+      Understand your portfolio's risk,<br>
+      <span class="accent">before the market does.</span>
+    </h1>
+    <p class="hero-sub">
+      RiskLens quantifies return, volatility, correlation, beta, Sharpe ratio,
+      Value at Risk, and drawdown for any mix of Indian and US stocks — and shows
+      you what those numbers cost you in real money.
+    </p>
+    <div class="hero-cta">
+      <a href="/signup" class="btn-primary btn-lg">Get Started</a>
+      <a href="/login" class="btn-outline btn-lg">Login</a>
+    </div>
+    <div class="hero-meta">
+      <span>◆ Historical simulation VaR</span>
+      <span>◆ Risk contribution per stock</span>
+      <span>◆ Cost-impact in ₹</span>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="chart-card">
+      <div class="chart-card-head">
+        <span class="ticker-tag">RELIANCE.NS</span>
+        <span class="chart-label">6-month price</span>
+      </div>
+      <div id="hero-ohlc" class="ohlc-strip small"></div>
+      <div id="hero-chart" class="chart-slot"><div class="chart-loading">Loading chart…</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="feature-card">
+    <div class="feature-num">01</div>
+    <h3>Build any portfolio</h3>
+    <p>Enter your holdings with tickers and weights. Mix Indian (.NS) and US stocks freely.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-num">02</div>
+    <h3>Quantify risk</h3>
+    <p>Standard deviation, beta, Sharpe ratio, Value at Risk, Expected Shortfall, maximum drawdown, correlation matrix.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-num">03</div>
+    <h3>See the cost</h3>
+    <p>Every metric is translated into rupees — how much a bad day, a bad week, or a full drawdown could cost your portfolio.</p>
+  </div>
+</section>
+
+<script>
+fetch('/api/chart-public/RELIANCE.NS?_=' + Date.now(), {cache: 'no-store'})
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      document.getElementById('hero-chart').innerHTML = '<div class="chart-loading">' + data.error + '</div>';
+      return;
+    }
+    Plotly.newPlot('hero-chart', data.figure.data, data.figure.layout, {displayModeBar: false, responsive: true});
+
+    const o = data.ohlc;
+    const cls = o.change >= 0 ? 'gain' : 'loss';
+    const sign = o.change >= 0 ? '+' : '';
+    document.getElementById('hero-ohlc').innerHTML =
+      '<span class="ohlc-item"><span class="ohlc-label">O</span><span class="ohlc-val">' + o.open + '</span></span>' +
+      '<span class="ohlc-item"><span class="ohlc-label">H</span><span class="ohlc-val">' + o.high + '</span></span>' +
+      '<span class="ohlc-item"><span class="ohlc-label">L</span><span class="ohlc-val">' + o.low + '</span></span>' +
+      '<span class="ohlc-item"><span class="ohlc-label">C</span><span class="ohlc-val">' + o.close + '</span></span>' +
+      '<span class="ohlc-change ' + cls + '">' + sign + o.change + ' (' + sign + o.change_pct + '%)</span>';
+  })
+  .catch(err => {
+    document.getElementById('hero-chart').innerHTML = '<div class="chart-loading">Error: ' + err + '</div>';
+  });
+</script>
+
+{% endblock %}
